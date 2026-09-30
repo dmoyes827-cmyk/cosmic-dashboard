@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PodFind - Track Your AirPods</title>
+  <style>
+    :root {
+      --bg-1: #050816;
+      --bg-2: #0d1630;
+      --panel: rgba(12, 18, 38, 0.72);
+      --panel-border: rgba(148, 163, 184, 0.25);
+      --text: #e2e8f0;
+      --muted: #a5b4cf;
+      --cyan: #67e8f9;
+      --purple: #a78bfa;
+      --pink: #f472b6;
+      --green: #34d399;
+      --orange: #fb923c;
+      --red: #ef4444;
+      --gold: #fbbf24;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top, #14213d 0%, var(--bg-1) 35%, #020712 100%);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(103, 232, 249, 0.12), transparent 20%),
+        radial-gradient(circle at 80% 10%, rgba(167, 139, 250, 0.14), transparent 25%),
+        radial-gradient(circle at 50% 80%, rgba(244, 114, 182, 0.12), transparent 20%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      border: 1px solid var(--panel-border);
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.35);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      display: grid;
+      place-items: center;
+      color: #000;
+      font-weight: 900;
+      font-size: 1.2rem;
+      box-shadow: 0 0 20px rgba(103, 232, 249, 0.6);
+    }
+
+    .app-name {
+      font-size: 1.4rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: rgba(52, 211, 153, 0.1);
+      border: 1px solid rgba(52, 211, 153, 0.2);
+      border-radius: 12px;
+      font-size: 0.9rem;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .button {
+      appearance: none;
+      border: none;
+      cursor: pointer;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      transition: all 0.2s ease;
+      font-size: 0.95rem;
+    }
+
+    .button.primary {
+      color: #000;
+      background: linear-gradient(135deg, var(--cyan), #8fe3ff);
+      box-shadow: 0 8px 20px rgba(103, 232, 249, 0.3);
+    }
+
+    .button.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(103, 232, 249, 0.4);
+    }
+
+    .button.secondary {
+      color: var(--text);
+      background: rgba(148, 163, 184, 0.1);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .button.secondary:hover {
+      background: rgba(148, 163, 184, 0.15);
+    }
+
+    .button.large {
+      padding: 16px 28px;
+      font-size: 1.05rem;
+      width: 100%;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .panel {
+      border: 1px solid var(--panel-border);
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.35);
+      padding: 28px;
+    }
+
+    .panel-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin: 0 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .airpod-card {
+      padding: 20px;
+      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.52);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      margin-bottom: 16px;
+      transition: all 0.2s ease;
+    }
+
+    .airpod-card:hover {
+      border-color: var(--cyan);
+      background: rgba(15, 23, 42, 0.7);
+    }
+
+    .airpod-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .airpod-name {
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .battery-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(52, 211, 153, 0.15);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      border-radius: 20px;
+      font-size: 0.85rem;
+      color: var(--green);
+    }
+
+    .battery-low {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: var(--red);
+    }
+
+    .status-line {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+    }
+
+    .action-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .button.small {
+      padding: 10px 14px;
+      font-size: 0.85rem;
+    }
+
+    .map-container {
+      width: 100%;
+      height: 400px;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--panel-border);
+      display: grid;
+      place-items: center;
+      margin-bottom: 16px;
+      color: var(--muted);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .map-placeholder {
+      text-align: center;
+    }
+
+    .map-placeholder .icon {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+    }
+
+    .location-info {
+      padding: 16px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.52);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .location-label {
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .location-value {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .location-time {
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-top: 4px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+    }
+
+    .empty-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .feature-card {
+      padding: 14px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.52);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      text-align: center;
+    }
+
+    .feature-icon {
+      font-size: 1.5rem;
+      margin-bottom: 6px;
+    }
+
+    .feature-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 2px;
+    }
+
+    .feature-desc {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .pricing-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .pricing-card {
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .pricing-card:hover {
+      border-color: var(--cyan);
+      background: rgba(15, 23, 42, 0.7);
+    }
+
+    .pricing-card.popular {
+      border: 2px solid var(--cyan);
+      background: rgba(103, 232, 249, 0.08);
+    }
+
+    .pricing-price {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--cyan);
+      margin: 10px 0;
+    }
+
+    .pricing-desc {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 100;
+      place-items: center;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal.active {
+      display: grid;
+    }
+
+    .modal-content {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 20px;
+      padding: 32px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0 0 16px;
+    }
+
+    .modal-desc {
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .lock-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      background: rgba(251, 191, 36, 0.15);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--gold);
+    }
+
+    .radar {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(103, 232, 249, 0.1) 0%, rgba(103, 232, 249, 0.05) 100%);
+      border: 2px solid var(--cyan);
+      position: relative;
+      margin: 20px auto;
+      display: grid;
+      place-items: center;
+    }
+
+    .radar::before {
+      content: "";
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border: 1px solid rgba(103, 232, 249, 0.2);
+      border-radius: 50%;
+      top: 0;
+      left: 0;
+    }
+
+    .radar-center {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 30px rgba(103, 232, 249, 0.5);
+      font-size: 1.5rem;
+    }
+
+    .scan-line {
+      position: absolute;
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      top: 50%;
+      left: 0;
+      animation: scan 3s linear infinite;
+    }
+
+    @keyframes scan {
+      0% { transform: scaleX(0); }
+      50% { transform: scaleX(1); }
+      100% { transform: scaleX(1); }
+    }
+
+    @media (max-width: 1024px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .pricing-cards {
+        grid-template-columns: 1fr;
+      }
+
+      .action-buttons {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">🎧</div>
+        <div class="app-name">PodFind</div>
+      </div>
+      <div class="topbar-right">
+        <div class="status-badge" id="statusBadge">
+          <span class="status-dot"></span>
+          <span>Connected</span>
+        </div>
+        <button class="button secondary" id="upgradeBtn">Upgrade Pro</button>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="main-grid">
+      <!-- Left: AirPods Status -->
+      <div class="panel">
+        <h2 class="panel-title">🎧 Your AirPods</h2>
+
+        <div id="airpodsContainer">
+          <div class="airpod-card">
+            <div class="airpod-header">
+              <div class="airpod-name">Left AirPod</div>
+              <div class="battery-badge">🔋 78%</div>
+            </div>
+            <div class="status-line">✓ Connected • In use</div>
+            <div class="action-buttons">
+              <button class="button primary small" onclick="playSound('left')">🔊 Play Sound</button>
+              <button class="button secondary small">📍 Find</button>
+            </div>
+          </div>
+
+          <div class="airpod-card">
+            <div class="airpod-header">
+              <div class="airpod-name">Right AirPod</div>
+              <div class="battery-badge">🔋 75%</div>
+            </div>
+            <div class="status-line">✓ Connected • In use</div>
+            <div class="action-buttons">
+              <button class="button primary small" onclick="playSound('right')">🔊 Play Sound</button>
+              <button class="button secondary small">📍 Find</button>
+            </div>
+          </div>
+
+          <div class="airpod-card">
+            <div class="airpod-header">
+              <div class="airpod-name">Charging Case</div>
+              <div class="battery-badge">🔋 45%</div>
+            </div>
+            <div class="status-line">⚠️ Not connected • Last seen 2m ago</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 20px; padding: 16px; border-radius: 12px; background: rgba(103, 232, 249, 0.08); border: 1px solid rgba(103, 232, 249, 0.2);">
+          <div style="font-weight: 600; margin-bottom: 8px; color: var(--cyan);">💡 Tip</div>
+          <div style="color: var(--muted); font-size: 0.9rem; line-height: 1.5;">
+            Keep PodFind open for real-time tracking. Upgrade to Pro for background tracking and alerts.
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Find My AirPods Map -->
+      <div class="panel">
+        <h2 class="panel-title">📍 Find Your AirPods</h2>
+
+        <div class="map-container">
+          <div class="scan-line"></div>
+          <div class="radar">
+            <div class="radar-center">🎧</div>
+          </div>
+        </div>
+
+        <div class="location-info">
+          <div class="location-label">Last Known Location</div>
+          <div class="location-value">Home - Living Room</div>
+          <div class="location-time">Updated 2 minutes ago</div>
+        </div>
+
+        <button class="button primary large" style="margin-top: 16px;" onclick="openModal('findModal')">
+          🗺️ View Full Map <span class="lock-badge">Pro</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="panel">
+      <h2 class="panel-title">✨ Features</h2>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🔊</div>
+          <div class="feature-title">Play Sound</div>
+          <div class="feature-desc">Find your AirPods instantly</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📍</div>
+          <div class="feature-title">Live Tracking</div>
+          <div class="feature-desc">See location in real-time</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔔</div>
+          <div class="feature-title">Smart Alerts</div>
+          <div class="feature-desc">Get notified when lost</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <div class="feature-title">Battery Monitor</div>
+          <div class="feature-desc">Track charging status</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎯</div>
+          <div class="feature-title">Precision Finding</div>
+          <div class="feature-desc">Ultra Wideband precision</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <div class="feature-title">History Log</div>
+          <div class="feature-desc">Track movement history</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upgrade Modal -->
+  <div class="modal" id="upgradeModal">
+    <div class="modal-content">
+      <h2 class="modal-title">🚀 Upgrade to Pro</h2>
+      <p class="modal-desc">
+        Unlock advanced tracking features, background monitoring, and unlimited find history.
+      </p>
+
+      <div class="pricing-cards">
+        <div class="pricing-card" onclick="buyPremium('monthly')">
+          <div style="font-weight: 600;">Monthly</div>
+          <div class="pricing-price">$4.99</div>
+          <div class="pricing-desc">Billed monthly</div>
+          <button class="button primary" style="width: 100%; padding: 10px;">Subscribe</button>
+        </div>
+        <div class="pricing-card popular" onclick="buyPremium('yearly')">
+          <div style="color: var(--gold); font-weight: 600;">BEST DEAL</div>
+          <div class="pricing-price">$39.99</div>
+          <div class="pricing-desc">Billed yearly (33% off)</div>
+          <button class="button primary" style="width: 100%; padding: 10px;">Subscribe</button>
+        </div>
+      </div>
+
+      <h3 style="margin: 20px 0 12px; font-size: 1rem;">Pro Features:</h3>
+      <div style="display: grid; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+          <span style="color: var(--green);">✓</span>
+          <div>
+            <div style="font-weight: 600;">Background Tracking</div>
+            <div style="color: var(--muted); font-size: 0.85rem;">Track even when app is closed</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+          <span style="color: var(--green);">✓</span>
+          <div>
+            <div style="font-weight: 600;">Full Map View</div>
+            <div style="color: var(--muted); font-size: 0.85rem;">Detailed interactive maps</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+          <span style="color: var(--green);">✓</span>
+          <div>
+            <div style="font-weight: 600;">Movement History</div>
+            <div style="color: var(--muted); font-size: 0.85rem;">7-day tracking history</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+          <span style="color: var(--green);">✓</span>
+          <div>
+            <div style="font-weight: 600;">Smart Alerts</div>
+            <div style="color: var(--muted); font-size: 0.85rem;">Get notified of unusual activity</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="button secondary" onclick="closeModal('upgradeModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Find Map Modal -->
+  <div class="modal" id="findModal">
+    <div class="modal-content">
+      <h2 class="modal-title">🗺️ Full Map View</h2>
+      <div style="width: 100%; height: 300px; background: rgba(15, 23, 42, 0.8); border-radius: 12px; border: 1px solid var(--panel-border); display: grid; place-items: center; margin: 16px 0; color: var(--muted);">
+        <div style="text-align: center;">
+          <div style="font-size: 2rem; margin-bottom: 12px;">🗺️</div>
+          <div>Interactive map with live tracking</div>
+          <div style="font-size: 0.85rem; color: var(--muted); margin-top: 8px;">(Powered by Apple Maps API)</div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+        <div style="padding: 12px; border-radius: 10px; background: rgba(103, 232, 249, 0.1); border: 1px solid rgba(103, 232, 249, 0.2);">
+          <div style="color: var(--muted); font-size: 0.8rem; margin-bottom: 4px;">Distance</div>
+          <div style="font-weight: 600;">47 meters away</div>
+        </div>
+        <div style="padding: 12px; border-radius: 10px; background: rgba(103, 232, 249, 0.1); border: 1px solid rgba(103, 232, 249, 0.2);">
+          <div style="color: var(--muted); font-size: 0.8rem; margin-bottom: 4px;">Direction</div>
+          <div style="font-weight: 600;">Northwest ↖️</div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="button secondary" onclick="closeModal('findModal')">Close</button>
+        <button class="button primary" onclick="playSound('all')">🔊 Play Sound</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let isPremium = false;
+
+    const upgradeBtn = document.getElementById('upgradeBtn');
+    upgradeBtn.addEventListener('click', () => openModal('upgradeModal'));
+
+    function playSound(pod) {
+      const messages = {
+        'left': '🔊 Playing sound on Left AirPod...',
+        'right': '🔊 Playing sound on Right AirPod...',
+        'all': '🔊 Playing sound on all AirPods...'
+      };
+
+      alert(messages[pod] + '\n\nIn a real app, this would trigger the Find My audio.');
+
+      // Simulate animation
+      const card = event.target.closest('.airpod-card');
+      if (card) {
+        card.style.boxShadow = '0 0 30px rgba(103, 232, 249, 0.6)';
+        setTimeout(() => {
+          card.style.boxShadow = '';
+        }, 1000);
+      }
+    }
+
+    function buyPremium(plan) {
+      alert(`🎉 Thank you! ${plan} plan selected.\n\nIn a real app, this would process payment via App Store.\n\nUpgrading your account to Pro...`);
+      isPremium = true;
+      upgradeBtn.textContent = '✓ Pro Active';
+      upgradeBtn.style.opacity = '0.7';
+      upgradeBtn.style.cursor = 'default';
+      closeModal('upgradeModal');
+    }
+
+    function openModal(modalId) {
+      document.getElementById(modalId).classList.add('active');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('active');
+    }
+
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.remove('active');
+      });
+    });
+  </script>
+</body>
+</html>
